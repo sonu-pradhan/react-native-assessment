@@ -1,4 +1,3 @@
-
 import {
     Pressable,
     ScrollView,
@@ -7,22 +6,21 @@ import {
     View,
 } from "react-native";
 
-import { router } from "expo-router";
 import { COLORS, SPACING } from "../constants/theme";
+import { useAuth } from "../context/AuthContext";
 
 export default function Dashboard() {
-    const user = {
-        name: "Alex Morgan",
-        email: "alex@hbplus.fit",
-        status: "Active",
-        organization: "HB+",
-    };
+    const { user, signOut } = useAuth();
+
+    if (!user) return null;
 
     const initials = user.name
         .split(" ")
+        .filter(Boolean)
         .map((part) => part[0])
         .join("")
-        .toUpperCase();
+        .toUpperCase()
+        .slice(0, 2);
 
     return (
         <ScrollView
@@ -153,7 +151,7 @@ export default function Dashboard() {
                         styles.logoutButton,
                         pressed && styles.buttonPressed,
                     ]}
-                    onPress={() => router.replace("/login")}
+                    onPress={signOut}
                     accessibilityRole="button"
                 >
                     <Text style={styles.logoutText}>

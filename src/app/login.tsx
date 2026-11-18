@@ -1,5 +1,5 @@
-
 import {
+    ActivityIndicator,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -7,10 +7,12 @@ import {
     View,
 } from "react-native";
 
-import { router } from "expo-router";
 import { COLORS, SPACING } from "../constants/theme";
+import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
+    const { signInWithGoogle, loading, error } = useAuth();
+
     return (
         <ScrollView
             contentContainerStyle={styles.scrollContent}
@@ -36,17 +38,32 @@ export default function Login() {
                     <Pressable
                         style={({ pressed }) => [
                             styles.googleButton,
-                            pressed && styles.buttonPressed,
+                            (pressed || loading) && styles.buttonPressed,
                         ]}
-                        onPress={() => router.push("/dashboard")}
+                        onPress={signInWithGoogle}
+                        disabled={loading}
                         accessibilityRole="button"
                         accessibilityLabel="Continue with Google"
                     >
-                        <Text style={styles.googleLetter}>G</Text>
-                        <Text style={styles.googleButtonText}>
-                            Continue with Google
-                        </Text>
+                        {loading ? (
+                            <ActivityIndicator size="small" color={COLORS.primary} />
+                        ) : (
+                            <>
+                                <Text style={styles.googleLetter}>G</Text>
+                                <Text style={styles.googleButtonText}>
+                                    Continue with Google
+                                </Text>
+                            </>
+                        )}
                     </Pressable>
+
+                    {error && (
+                        <View style={styles.errorBox}>
+                            <Text style={styles.errorText}>
+                                {error}
+                            </Text>
+                        </View>
+                    )}
 
                     <View style={styles.divider} />
 
@@ -146,6 +163,21 @@ const styles = StyleSheet.create({
     },
     buttonPressed: {
         opacity: 0.7,
+    },
+    errorBox: {
+        marginTop: SPACING.md,
+        backgroundColor: "#FDECEC",
+        borderWidth: 1,
+        borderColor: "#F5C2C2",
+        borderRadius: 10,
+        padding: SPACING.md,
+    },
+    errorText: {
+        color: "#B42318",
+        fontSize: 13,
+        lineHeight: 19,
+        textAlign: "center",
+        fontWeight: "500",
     },
     divider: {
         height: 1,

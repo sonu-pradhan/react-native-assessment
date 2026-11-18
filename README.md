@@ -1,56 +1,66 @@
-# Welcome to your Expo app 👋
+Setup Instructions
+1. Prerequisites
+Node.js (v18+)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+npm or yarn
 
-## Get started
+Expo Go app or Android/iOS emulator (optional for mobile testing)
 
-1. Install dependencies
+2. Clone & Install Dependencies
+Bash
+git clone <YOUR_GITHUB_REPO_URL>
+cd ReactNative-Assessment
+npm install
+3. Configure Environment Variables
+Copy .env.example to .env in the project root and populate your Supabase credentials:
 
-   ```bash
-   npm install
-   ```
+Bash
+cp .env.example .env
+Code snippet
+EXPO_PUBLIC_SUPABASE_URL=https://<your-project-ref>.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+EXPO_PUBLIC_ALLOWED_DOMAIN=@hbplus.fit
+4. Supabase & Google OAuth Setup
+In Google Cloud Console, create an OAuth 2.0 Web Client ID with the authorized redirect URI:https://<your-project-ref>.supabase.co/auth/v1/callback
 
-2. Start the app
+In Supabase → Authentication → Providers → Google, enable Google Sign-In and paste your Client ID and Client Secret.
 
-   ```bash
-   npx expo start
-   ```
+In Supabase → Authentication → URL Configuration, add your site URL and redirect URLs (http://localhost:8081/**, https://<your-netlify-site>.netlify.app/**, and reactnativeassessment://**).
 
-In the output, you'll find options to open the app in a
+In Supabase → SQL Editor, execute supabase/domain_restriction_hook.sql and register restrict_domain_hook under Authentication → Hooks → Before User Created.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+5. Run Locally
+Bash
+# Start development server
+npx expo start
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+# Press 'w' for Web, 'a' for Android Emulator, or 'i' for iOS Simulator
+Authentication Flow
+Login Initiation: On /login, the user clicks Continue with Google, triggering signInWithGoogle() in AuthContext.
 
-## Get a fresh project
+Platform-Aware OAuth:
 
-When you're ready, run:
+Web: Redirects to Google OAuth via supabase.auth.signInWithOAuth with hd: 'hbplus.fit' and prompt: 'select_account'.
 
-```bash
-npm run reset-project
-```
+Mobile (Android/iOS): Opens an in-app auth browser session via expo-web-browser and exchanges the callback URL tokens into a persisted Supabase session.
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Verification & Session Handling: Once Google returns the user's identity, both the server-side Auth Hook and client-side AuthContext validate the email domain.
 
-### Other setup steps
+Route Protection: RouteGuard in src/app/_layout.tsx monitors authentication state and blocks unauthenticated users from accessing /dashboard directly via URL.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Logout: Clicking Log out calls supabase.auth.signOut(), clears local session tokens, and redirects to /login.
 
-## Learn more
+How Domain Restriction Works (Dual-Layer Enforcement)
+Domain restriction is enforced at both the backend and frontend layers so it cannot be bypassed via direct API calls (e.g., Postman) or browser navigation:
 
-To learn more about developing your project with Expo, look at the following resources:
+Server-Side Enforcement (Postgres Before User Created Auth Hook):
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Before Supabase creates a user record or issues a JWT access token, public.restrict_domain_hook inspects event->'user'->>'email'.
 
-## Join the community
+If the email does not end with @hbplus.fit, Postgres rejects the request with HTTP 403 and the message "Access restricted. Please login using your official domain email."—preventing unauthorized accounts from ever obtaining a valid token.
 
-Join our community of developers creating universal apps.
+Client-Side Guard (AuthContext.tsx & _layout.tsx):
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Parses any OAuth error returned in the redirect URL and displays the restriction notice on the Login screen.
+
+Verifies email.endsWith('@hbplus.fit') on every session state change, immediately signing out non-compliant sessions and preventing unauthorized access to /dashboard.
